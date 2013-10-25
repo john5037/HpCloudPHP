@@ -11,7 +11,8 @@
  */
 
 namespace HPCloud;
-//require_once 'Bootstrap.php';
+
+require_once 'Bootstrap.php';
 
 
   
@@ -28,13 +29,20 @@ class HPCloudPHP {
 	/// (Edit to configure)
 	////////////////////////////////////////
 	
-       /**
+ /**
 	* Variable:	$identityUrl
 	* Description:	The Identity Service
 	* Example:	https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/
 	*/
 	private $identity_url = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/";
-	
+ 
+ /**
+	* Variable:	$messagingUrl
+	* Description:	The Messaging Service Service
+	* Example:	https://region-a.geo-1.messaging.hpcloudsvc.com/v1.1/
+	*/
+	private $messaging_url = "https://region-a.geo-1.messaging.hpcloudsvc.com/v1.1/";
+		
 	/**
 	 * Variable: $streamTransport
 	 *
@@ -64,44 +72,43 @@ class HPCloudPHP {
 	 * Description: Identity 	 
 	 * 
 	**/
-  	private $identity = '';      	
-  	/**
+  private $identity = '';      	
+  /**
 	 * Varaible: $mime
 	 * Description: MimeType 	 
 	 * 
 	**/
-  	private $mime = 'image/jpeg';      	
+  private $mime = 'image/jpeg';      	
   
-       	/**
-	* Function:	HPCloudPHP()
+ /**
+	* Function:	HPCloud()
 	* Parameters: 	none	
 	* Description:	Class constructor
 	* Returns:	TRUE on login success, otherwise FALSE
 	*/
-        static public $S3_URL = 'https://region-a.geo-1.objects.hpcloudsvc.com/v1/';
-
 	function __construct($account=null,$secreat=null,$tenantId=null,$identity_url=null,$stream_transport=null) 
 	{
-  
+	  
     if($identity_url == null)
       $identity_url = $this->identity_url;
       
     if($stream_transport == null)
       $streamtransport= $this->streamTransport;
       
-//    Bootstrap::useAutoloader();
-  //  Bootstrap::useStreamWrappers();
+    Bootstrap::useAutoloader();
+    Bootstrap::useStreamWrappers();
      
     $this->setConfigurations($account,$secreat,$tenantId,$identity_url,$streamtransport);  
     
     $this->identity = Bootstrap::identity();
+    $this->tenantId = $tenantId;
     return $this->token = $this->identity->token();
 	
   }
 	
 	private function setConfigurations($account,$secreat,$tenantId,$identity_url,$streamtransport)
 	{
-    		$settings = array(
+    $settings = array(
       'account' => $account,
       'secret' => $secreat,
       'tenantid' => $tenantId,
@@ -156,7 +163,8 @@ class HPCloudPHP {
 	*	$call_arguments	= (array) the arguments for the API call
 	* Description:	Makes an API call given a call name and arguments
 	*		on the specific API calls
-	* Returns:	An array with the API call response data
+	* Returns:	An array wi
+	*   th the API call response data
 	*/
 	
 	private function rest_request($call_name, $call_arguments) {
@@ -216,81 +224,176 @@ class HPCloudPHP {
     $container->save($localObject);
   }
 
-
-  public function faceDetection($filename='',$url_object_store='')
+ public function faceDetection($filename='',$url_object_store='')
  {
+       
     $url_pic = $filename;
     
-    $query_str = "url_pic=".$url_pic."&url_object_store=".$url_object_store;
+    $query_str = "url_pic=".$url_pic."&url_object_store=".$url_object_store."&filename=j1.jpg";
     
     //$url = "http://map-api.hpl.hp.com/facedetect".$query_str;
     $url = "http://map-api.hpl.hp.com/facedetect?".$query_str;
-
+    
     $ch = curl_init($url);
     
-    //$post_data = $url_pic;
     curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-      'X-Auth-Token: ' . $this->token,
-      
-    ));
-    //curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    
-   $response = curl_exec($ch);
-    //echo $url."<br>";
-    //var_dump($response);exit;
+  'X-Auth-Token: ' . $this->token,
+  
+  'mime: image/jpeg'  
+));
+
+    //curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
+
+    $response = curl_exec($ch);
+
     if($response === false)
     {
       echo 'Curl error: ' . curl_error($ch);die();
     }
-    else
-    {
-    
-     return $response;
-
-    }
-  
+      return $response;  
+ }
  
- }
-   public function faceVerification($filename='',$url_object_store='',$gallary_url = array())
+ private function addQueue($queue_name='',$messaging_url='')
  {
-    $url_pic_source = $filename;
-    $url_pic = "";
-    foreach($gallary_url as $gallary){
-	$url_pic .= "&url_pic=".$gallary;
-    }
-    $url_object_store = "&url_object_store=".$url_object_store;
-
-    $query_str = "url_pic_source=".$url_pic_source.$url_pic.$url_object_store;
-    
-    //$url = "http://map-api.hpl.hp.com/facedetect".$query_str;
-    $url = "http://map-api.hpl.hp.com/faceverify?".$query_str;
-   // echo $url;exit;
+    if($messaging_url == '')
+            $messaging_url = $this->messaging_url.$this->tenantId;
+         
+    $url = $messaging_url.'/queues/'.$queue_name;
     $ch = curl_init($url);
-
-    //$post_data = $url_pic;
     curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-      'X-Auth-Token: ' . $this->token,
-
+    'X-Auth-Token: ' . $this->token,
+    'Content-Type: ' . 'application/json' 
     ));
-    //curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-
-   $response = curl_exec($ch);
-    //echo $url."<br>";
-    //var_dump($response);exit;
+    curl_setopt($ch, CURLOPT_PUT, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
+    $response = curl_exec($ch);
     if($response === false)
     {
       echo 'Curl error: ' . curl_error($ch);die();
     }
-    else
-    {
-
-     return $response;
-
-    }
-
-
+    return $response;
  }
-  
+ private function checkQueue($queue_name)
+ {
+     $flag = 0;
+     $listQueues = json_decode($this->listQueue());
+    
+     foreach($listQueues->queues as $key=>$queue)
+     {
+       if($queue_name == $queue->name) {
+         $flag= 1;   
+         break;
+       }
+     }
+     // if name is Exist then send Message to Queue
+     if($flag == 1)
+     {
+      return true;
+     }
+     else {
+       // First we have to create the queue
+       $this->addQueue($queue_name);
+       return true;
+     }
+     
+ }
+ public function sendMessageToQueue($queue_name='',$msg = '',$messaging_url='')
+ {
+ 
+    // First we have to check that queue is Exist or not if its not exist then we have to create the queue
+    $this->checkQueue($queue_name);
+    if($messaging_url == '')
+            $messaging_url = $this->messaging_url.$this->tenantId;
+    
+    $url = $messaging_url.'/queues/'.$queue_name.'/messages';
+    $ch = curl_init($url);
+    
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    'X-Auth-Token: ' . $this->token,
+    'Content-Type: ' . 'application/json' 
+    ));
+    $datapost = array('body'=> $msg);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt ($ch, CURLOPT_POSTFIELDS, $datapost);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+   
+    $response = curl_exec($ch);
+    if($response === false)
+    {
+      echo 'Curl error: ' . curl_error($ch);die();
+    }
+    return $response;
+ }
+ public function getMessageFromQueue($queue_name='',$messaging_url='')
+ {
+   if($messaging_url == '')
+            $messaging_url = $this->messaging_url.$this->tenantId;   
+    $url = $messaging_url.'/queues/'.$queue_name.'/messages';
+    $ch = curl_init($url);   
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    'X-Auth-Token: ' . $this->token,
+    'Content-Type: ' . 'application/json' 
+    ));
+    
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+   
+    $response = curl_exec($ch);
+    if($response === false)
+    {
+      echo 'Curl error: ' . curl_error($ch);die();
+    }
+    return $response;
+ }
+ 
+ public function deleteQueue($queue_name='',$messaging_url='')
+ {
+    if($messaging_url == '')
+      $messaging_url = $this->messaging_url.$this->tenantId;
+    $url = $messaging_url.'/queues/'.$queue_name;
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    'X-Auth-Token: ' . $this->token,
+    'Content-Type: ' . 'application/json' 
+    ));
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
+    $response = curl_exec($ch);
+    if($response === false)
+    {
+      echo 'Curl error: ' . curl_error($ch);die();
+    }
+    return $response;
+ }
+ 
+ public function listQueue($messaging_url='')
+ {
+   if($messaging_url == '')
+            $messaging_url = $this->messaging_url.$this->tenantId;
+    
+    $url = $messaging_url.'/queues';
+ 
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    'X-Auth-Token: ' . $this->token,
+    'Content-Type: ' . 'application/json' 
+    ));
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
+
+    $response = curl_exec($ch);
+    if($response === false)
+    {
+      echo 'Curl error: ' . curl_error($ch);die();
+    }
+    return $response;
+ }
+
 } 
+ 
 ?>
 
