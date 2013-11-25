@@ -13,8 +13,6 @@
 namespace HPCloud;
 
 require_once 'Bootstrap.php';
-
-
   
 use HPCloud\Bootstrap;
 use HPCloud\Services\IdentityServices;
